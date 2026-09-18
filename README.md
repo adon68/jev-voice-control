@@ -61,6 +61,9 @@ brew tap chris-wozniczek/jev-voice https://github.com/chris-wozniczek/jev-voice-
 brew install --cask jev-voice
 ```
 
+Homebrew 7+ refuses untrusted third-party taps; if prompted, run
+`brew trust chris-wozniczek/jev-voice` first.
+
 Releases are produced by `.github/workflows/release.yml`: bump
 `CFBundleShortVersionString` in `Info.plist`, push a matching `vX.Y.Z` tag, and
 the workflow builds `Jev-Voice-X.Y.Z.zip`, publishes a GitHub release, and
