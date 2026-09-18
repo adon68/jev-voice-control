@@ -20,8 +20,9 @@ final class Config: ObservableObject {
         self.apiKey = defaults.string(forKey: "typesafeAPIKey")
             ?? ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"]
             ?? ""
-        let threshold = defaults.double(forKey: "confidenceThreshold")
-        self.confidenceThreshold = threshold == 0 ? 0.7 : threshold
+        self.confidenceThreshold = defaults.object(forKey: "confidenceThreshold") == nil
+            ? 0.7
+            : defaults.double(forKey: "confidenceThreshold")
         self.autoExecute = defaults.object(forKey: "autoExecute") as? Bool ?? true
     }
 }

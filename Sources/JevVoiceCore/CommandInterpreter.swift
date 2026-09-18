@@ -117,7 +117,7 @@ public final class CommandInterpreter {
             refersToFrontmost = p > 0.5
         }
 
-        var url = SlotExtractor.url(from: clause)
+        let url = SlotExtractor.url(from: clause)
         var query = SlotExtractor.searchQuery(from: clause)
         let text = SlotExtractor.dictationText(from: clause)
         let percent = SlotExtractor.numberPercent(from: clause)
@@ -126,8 +126,12 @@ public final class CommandInterpreter {
             action = .webSearch
             query = q
         }
-        if action == .openApp && targetApp == nil && refersToFrontmost {
-            action = .none
+        if targetApp == nil && refersToFrontmost && (action == .closeApp || action == .openApp) {
+            if action == .closeApp, let front = frontmostApp {
+                targetApp = front
+            } else {
+                action = .none
+            }
         }
         if (action == .openURL || action == .webSearch),
            let app = targetApp,
@@ -135,7 +139,7 @@ public final class CommandInterpreter {
             targetApp = nil
         }
         if action == .system && systemAction == nil {
-            systemAction = .none
+            systemAction = SystemAction.none
         }
         if systemAction != nil && action == .none {
             action = .system

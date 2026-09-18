@@ -60,7 +60,13 @@ final class SpeechRecognizer: ObservableObject {
         }
 
         audioEngine.prepare()
-        try audioEngine.start()
+        do {
+            try audioEngine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            self.request = nil
+            throw error
+        }
         isRunning = true
 
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in

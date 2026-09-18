@@ -35,6 +35,10 @@ final class VoiceController: ObservableObject {
         switch status {
         case .listening:
             recognizer.stop()
+            if recognizer.transcript.trimmingCharacters(in: .whitespaces).isEmpty {
+                status = .idle
+                onListeningChanged?(false)
+            }
         case .idle, .done, .error:
             startListening()
         default:

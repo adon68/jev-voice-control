@@ -81,9 +81,16 @@ enum Executor {
 
     private static func dictate(_ text: String) -> String {
         let pasteboard = NSPasteboard.general
-        let previous = pasteboard.string(forType: .string)
+        let saved: [NSPasteboardItem] = (pasteboard.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            return copy
+        }
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+        let ourChangeCount = pasteboard.changeCount
 
         let source = CGEventSource(stateID: .hidSystemState)
         let vDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)
@@ -95,8 +102,9 @@ enum Executor {
 
         DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
             DispatchQueue.main.async {
+                guard pasteboard.changeCount == ourChangeCount else { return }
                 pasteboard.clearContents()
-                if let previous { pasteboard.setString(previous, forType: .string) }
+                if !saved.isEmpty { pasteboard.writeObjects(saved) }
             }
         }
         return "Typed \"\(text)\""

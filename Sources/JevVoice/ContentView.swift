@@ -88,7 +88,8 @@ struct ContentView: View {
                     DecisionCard(
                         decision: decision,
                         needsConfirm: controller.status == .awaitingConfirm
-                            && decision.confidence < controller.config.confidenceThreshold
+                            && (!controller.config.autoExecute
+                                || decision.confidence < controller.config.confidenceThreshold)
                             && decision.action != .none,
                         onConfirm: { Task { await controller.confirmAndExecute() } }
                     )
