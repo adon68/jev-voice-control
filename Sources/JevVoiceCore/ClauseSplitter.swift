@@ -16,7 +16,7 @@ public enum ClauseSplitter {
         let fullRange = NSRange(location: 0, length: ns.length)
         let matches = regex.matches(in: transcript, range: fullRange)
 
-        var splitLocations: [Int] = []
+        var splitLocations: [(start: Int, resume: Int)] = []
         for match in matches {
             let after = match.range.location + match.range.length
             guard after < ns.length else { continue }
@@ -33,17 +33,17 @@ public enum ClauseSplitter {
             }
             let nextWord = ns.substring(with: NSRange(location: i, length: j - i)).lowercased()
             if commandVerbs.contains(nextWord) {
-                splitLocations.append(match.range.location)
+                splitLocations.append((start: match.range.location, resume: i))
             }
         }
 
         var parts: [String] = []
         var last = 0
         for loc in splitLocations {
-            let piece = ns.substring(with: NSRange(location: last, length: loc - last))
+            let piece = ns.substring(with: NSRange(location: last, length: loc.start - last))
             let trimmed = piece.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty { parts.append(trimmed) }
-            last = loc
+            last = loc.resume
         }
         let tail = ns.substring(from: last).trimmingCharacters(in: .whitespacesAndNewlines)
         if !tail.isEmpty { parts.append(tail) }
