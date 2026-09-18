@@ -40,7 +40,7 @@ enum InstalledApps {
             }
             if let prefix = entries.first(where: {
                 $0.pathExtension == "app" &&
-                $0.deletingPathExtension().lastPathComponent.lowercased().hasPrefix(name.lowercased())
+                $0.deletingPathExtension().lastPathComponent.lowercased().contains(name.lowercased())
             }) {
                 return prefix
             }

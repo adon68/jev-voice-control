@@ -1,0 +1,34 @@
+import XCTest
+@testable import JevVoiceCore
+
+final class AppMatcherTests: XCTestCase {
+    let apps = ["Google Chrome", "Safari", "Notes", "Visual Studio Code", "Music", "Go"]
+
+    func testPartialName() {
+        XCTAssertEqual(AppMatcher.match(clause: "close chrome", installedApps: apps),
+                       .init(app: "Google Chrome", confidence: 0.8))
+    }
+
+    func testFullName() {
+        XCTAssertEqual(AppMatcher.match(clause: "open visual studio code", installedApps: apps),
+                       .init(app: "Visual Studio Code", confidence: 0.95))
+    }
+
+    func testCaseInsensitive() {
+        XCTAssertEqual(AppMatcher.match(clause: "Open Safari please", installedApps: apps)?.app, "Safari")
+    }
+
+    func testNoApp() {
+        XCTAssertNil(AppMatcher.match(clause: "close the app", installedApps: apps))
+    }
+
+    func testSubstringDoesNotBeatToken() {
+        XCTAssertEqual(AppMatcher.match(clause: "open google", installedApps: apps)?.app, "Google Chrome")
+    }
+
+    func testTieIsLowConfidence() {
+        let match = AppMatcher.match(clause: "close chrome",
+                                     installedApps: ["Google Chrome", "Chrome Remote Desktop"])
+        XCTAssertEqual(match?.confidence, 0.5)
+    }
+}

@@ -59,7 +59,7 @@ enum Executor {
             $0.localizedName?.caseInsensitiveCompare(name) == .orderedSame
         }
         if let app = matches.first ?? NSWorkspace.shared.runningApplications.first(where: {
-            $0.localizedName?.lowercased().hasPrefix(name.lowercased()) ?? false
+            $0.localizedName?.lowercased().contains(name.lowercased()) ?? false
         }) {
             app.terminate()
             return "Quit \(app.localizedName ?? name)"
