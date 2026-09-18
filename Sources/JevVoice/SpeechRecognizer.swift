@@ -109,7 +109,8 @@ final class SpeechRecognizer: ObservableObject {
     private func scheduleSilenceFinalize() {
         silenceTimer?.invalidate()
         silenceTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
-            Task { @MainActor in self?.stop(fireCallback: true) }
+            guard let self else { return }
+            Task { @MainActor in self.stop(fireCallback: true) }
         }
     }
 }
