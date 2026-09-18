@@ -8,7 +8,7 @@ final class SpeechRecognizer: ObservableObject {
 
     var onFinalTranscript: ((String) -> Void)?
 
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine = AVAudioEngine()
     private var recognizer: SFSpeechRecognizer?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -53,8 +53,18 @@ final class SpeechRecognizer: ObservableObject {
         }
         self.request = request
 
+        // A fresh engine picks up the current default input device and the
+        // microphone permission granted since the last attempt.
+        audioEngine = AVAudioEngine()
         let inputNode = audioEngine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
+        let format = inputNode.inputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            self.request = nil
+            throw NSError(
+                domain: "JevVoice.Speech", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "No microphone input available"]
+            )
+        }
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             self?.request?.append(buffer)
         }

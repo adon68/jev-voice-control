@@ -17,6 +17,9 @@ final class VoiceController: ObservableObject {
     @Published var history: [Decision] = []
     @Published var showSettings = false
     @Published var missingPermissions: [Permission] = Permission.missing
+    @Published var hotKeyRegistered = true
+
+    var isListening: Bool { status == .listening }
 
     let config = Config.shared
     let recognizer = SpeechRecognizer()

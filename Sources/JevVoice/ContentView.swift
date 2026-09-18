@@ -128,11 +128,22 @@ struct ContentView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Spacer()
-            Text("⌥Space to talk")
+        HStack(spacing: 10) {
+            Button {
+                controller.toggle()
+            } label: {
+                Label(controller.isListening ? "Stop" : "Talk",
+                      systemImage: controller.isListening ? "stop.circle.fill" : "mic.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(controller.isListening ? .red : .accentColor)
+            .disabled(controller.missingPermissions.contains { $0 != .accessibility })
+            Text(controller.hotKeyRegistered ? "or ⌥Space anywhere" : "⌥Space is taken by another app")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(controller.hotKeyRegistered ? Color.secondary : Color.orange)
+            Spacer()
+            Button("Quit") { NSApplication.shared.terminate(nil) }
+                .controlSize(.small)
         }
     }
 }

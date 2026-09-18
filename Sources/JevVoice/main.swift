@@ -65,10 +65,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentViewController?.view.window?.makeKey()
     }
 
-    /// An LSUIElement app has no menu bar, so standard edit shortcuts
-    /// (Cmd+V/C/X/A) never reach text fields unless an Edit menu exists.
+    /// An LSUIElement app has no menu bar, so Cmd+Q and standard edit shortcuts
+    /// (Cmd+V/C/X/A) do nothing unless a main menu defines them.
     private func installEditMenu() {
         let mainMenu = NSMenu()
+        let appItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Quit Jev Voice", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appItem.submenu = appMenu
+        mainMenu.addItem(appItem)
         let editItem = NSMenuItem()
         let editMenu = NSMenu(title: "Edit")
         editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
@@ -99,10 +104,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Unmanaged.passUnretained(self).toOpaque(), nil
         )
         let hotKeyID = EventHotKeyID(signature: OSType(0x4A56_5631), id: 1) // "JVV1"
-        RegisterEventHotKey(
+        let status = RegisterEventHotKey(
             UInt32(kVK_Space), UInt32(optionKey), hotKeyID,
             GetApplicationEventTarget(), 0, &hotKeyRef
         )
+        controller.hotKeyRegistered = status == noErr
     }
 }
 
