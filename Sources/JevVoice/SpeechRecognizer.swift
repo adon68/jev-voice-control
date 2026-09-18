@@ -1,4 +1,5 @@
 import AVFoundation
+import os
 import Speech
 
 @MainActor
@@ -7,6 +8,10 @@ final class SpeechRecognizer: ObservableObject {
     @Published private(set) var isRunning = false
 
     var onFinalTranscript: ((String) -> Void)?
+    /// Called when recognition ends without a usable transcript, with the
+    /// underlying error if the system reported one.
+    var onEndedWithoutSpeech: ((Error?) -> Void)?
+    private let log = Logger(subsystem: "com.chriswozniczek.jevvoice", category: "speech")
 
     private var audioEngine = AVAudioEngine()
     private var recognizer: SFSpeechRecognizer?
@@ -48,9 +53,6 @@ final class SpeechRecognizer: ObservableObject {
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        if recognizer.supportsOnDeviceRecognition {
-            request.requiresOnDeviceRecognition = true
-        }
         self.request = request
 
         // A fresh engine picks up the current default input device and the
@@ -78,12 +80,14 @@ final class SpeechRecognizer: ObservableObject {
             throw error
         }
         isRunning = true
+        log.info("listening: \(format.sampleRate, privacy: .public) Hz, \(format.channelCount, privacy: .public) ch, onDevice=\(recognizer.supportsOnDeviceRecognition, privacy: .public)")
 
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
             Task { @MainActor in
                 if let result {
                     let text = result.bestTranscription.formattedString
+                    self.log.debug("partial: \(text.count, privacy: .public) chars")
                     self.transcript = text
                     if !text.isEmpty {
                         self.heardSpeech = true
@@ -91,7 +95,10 @@ final class SpeechRecognizer: ObservableObject {
                     }
                     if result.isFinal { self.stop(fireCallback: true) }
                 }
-                if error != nil { self.stop(fireCallback: true) }
+                if let error {
+                    self.log.error("recognition error: \(error.localizedDescription, privacy: .public)")
+                    self.stop(fireCallback: true, error: error)
+                }
             }
         }
     }
@@ -100,7 +107,7 @@ final class SpeechRecognizer: ObservableObject {
         stop(fireCallback: true)
     }
 
-    private func stop(fireCallback: Bool) {
+    private func stop(fireCallback: Bool, error: Error? = nil) {
         silenceTimer?.invalidate()
         silenceTimer = nil
         guard isRunning || task != nil else { return }
@@ -111,8 +118,11 @@ final class SpeechRecognizer: ObservableObject {
         task?.cancel()
         request = nil
         task = nil
-        if fireCallback, heardSpeech, !transcript.isEmpty {
+        guard fireCallback else { return }
+        if heardSpeech, !transcript.isEmpty {
             onFinalTranscript?(transcript)
+        } else {
+            onEndedWithoutSpeech?(error)
         }
     }
 

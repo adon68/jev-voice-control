@@ -100,7 +100,7 @@ struct ContentView: View {
 
     private var transcriptSection: some View {
         GroupBox {
-            Text(controller.transcript.isEmpty ? "Press ⌥Space and speak" : "“\(controller.transcript)”")
+            Text(controller.transcript.isEmpty ? "Click Talk or press ⌥Space, then speak" : "“\(controller.transcript)”")
                 .font(.callout)
                 .italic(controller.transcript.isEmpty)
                 .foregroundStyle(controller.transcript.isEmpty ? .secondary : .primary)
