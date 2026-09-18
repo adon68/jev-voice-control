@@ -17,6 +17,9 @@ final class VoiceController: ObservableObject {
     @Published var history: [Decision] = []
     @Published var showSettings = false
     @Published var missingPermissions: [Permission] = Permission.missing
+    @Published var hotKeyRegistered = true
+
+    var isListening: Bool { status == .listening }
 
     let config = Config.shared
     let recognizer = SpeechRecognizer()
@@ -60,8 +63,12 @@ final class VoiceController: ObservableObject {
         }
     }
 
+    private var startTask: Task<Void, Never>?
+
     func startListening() {
-        Task {
+        guard startTask == nil else { return }
+        startTask = Task {
+            defer { startTask = nil }
             let granted = await SpeechRecognizer.requestAuthorization()
             refreshPermissions()
             guard granted else {
@@ -77,6 +84,7 @@ final class VoiceController: ObservableObject {
                 onListeningChanged?(true)
             } catch {
                 status = .error(error.localizedDescription)
+                onDone?()
             }
         }
     }
