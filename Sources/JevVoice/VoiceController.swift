@@ -39,6 +39,7 @@ final class VoiceController: ObservableObject {
             guard let self, self.status == .listening else { return }
             if let error {
                 self.status = .error("Speech recognition failed: \(error.localizedDescription)")
+                self.onDone?()
             } else {
                 self.status = .idle
             }

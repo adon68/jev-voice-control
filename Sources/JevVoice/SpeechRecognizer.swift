@@ -87,7 +87,7 @@ final class SpeechRecognizer: ObservableObject {
             Task { @MainActor in
                 if let result {
                     let text = result.bestTranscription.formattedString
-                    self.log.debug("partial: \(text, privacy: .public)")
+                    self.log.debug("partial: \(text.count, privacy: .public) chars")
                     self.transcript = text
                     if !text.isEmpty {
                         self.heardSpeech = true
