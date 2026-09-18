@@ -10,6 +10,9 @@ struct ContentView: View {
                 SettingsView()
             } else {
                 header
+                if !controller.missingPermissions.isEmpty {
+                    permissionsBanner
+                }
                 transcriptSection
                 decisionsSection
                 Spacer(minLength: 0)
@@ -67,6 +70,31 @@ struct ContentView: View {
         case .executing: return "Executing…"
         case .done: return "Done"
         case .error(let message): return "Error: \(message)"
+        }
+    }
+
+    private var permissionsBanner: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Permissions needed", systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout.bold())
+                    .foregroundStyle(.orange)
+                ForEach(controller.missingPermissions) { permission in
+                    HStack {
+                        Text("\(permission.rawValue) — to \(permission.purpose)")
+                            .font(.caption)
+                        Spacer()
+                        Button(permission.canPrompt ? "Allow" : "Open Settings") {
+                            Task {
+                                await permission.request()
+                                controller.refreshPermissions()
+                            }
+                        }
+                        .controlSize(.small)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

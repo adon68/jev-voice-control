@@ -16,6 +16,7 @@ final class VoiceController: ObservableObject {
     @Published var model = ""
     @Published var history: [Decision] = []
     @Published var showSettings = false
+    @Published var missingPermissions: [Permission] = Permission.missing
 
     let config = Config.shared
     let recognizer = SpeechRecognizer()
@@ -29,6 +30,19 @@ final class VoiceController: ObservableObject {
         recognizer.onFinalTranscript = { [weak self] text in
             Task { @MainActor in await self?.interpretAndExecute(text) }
         }
+    }
+
+    func refreshPermissions() {
+        missingPermissions = Permission.missing
+    }
+
+    /// Shows the system prompt for every permission the app still lacks and can
+    /// still ask for; already-denied ones are left to the in-popover banner.
+    func requestMissingPermissions() async {
+        for permission in Permission.missing where permission.canPrompt {
+            await permission.request()
+        }
+        refreshPermissions()
     }
 
     func toggle() {
@@ -48,8 +62,11 @@ final class VoiceController: ObservableObject {
 
     func startListening() {
         Task {
-            guard await SpeechRecognizer.requestAuthorization() else {
+            let granted = await SpeechRecognizer.requestAuthorization()
+            refreshPermissions()
+            guard granted else {
                 status = .error("Microphone or Speech Recognition permission denied")
+                onDone?()
                 return
             }
             do {

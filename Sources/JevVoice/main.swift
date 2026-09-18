@@ -35,6 +35,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         registerHotKey()
+
+        Task {
+            await controller.requestMissingPermissions()
+            if !controller.missingPermissions.isEmpty { showPopover() }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -55,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPopover() {
         guard let button = statusItem.button, !popover.isShown else { return }
+        controller.refreshPermissions()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
     }
