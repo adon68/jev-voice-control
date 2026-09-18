@@ -40,3 +40,45 @@ final class ClauseSplitterNewVerbTests: XCTestCase {
         XCTAssertEqual(ClauseSplitter.split("bring up notes then shut down music"), ["bring up notes", "shut down music"])
     }
 }
+
+final class ClauseSplitterCandidateTests: XCTestCase {
+    func testCommaBoundaryDoesNotNeedJudgment() {
+        let transcript = "open chrome, search for banana in google"
+        let boundaries = ClauseSplitter.candidateBoundaries(transcript)
+
+        XCTAssertEqual(boundaries.count, 1)
+        XCTAssertEqual(
+            (transcript as NSString).substring(from: boundaries[0].location),
+            "search for banana in google"
+        )
+        XCTAssertFalse(boundaries[0].needsJudgment)
+    }
+
+    func testVerbBoundaryNeedsJudgment() {
+        let transcript = "open chrome search for banana"
+        let boundaries = ClauseSplitter.candidateBoundaries(transcript)
+
+        XCTAssertEqual(boundaries.count, 1)
+        XCTAssertEqual(
+            (transcript as NSString).substring(from: boundaries[0].location),
+            "search for banana"
+        )
+        XCTAssertTrue(boundaries[0].needsJudgment)
+    }
+
+    func testDictationTextHasNoBoundaries() {
+        XCTAssertTrue(ClauseSplitter.candidateBoundaries("type open the door").isEmpty)
+    }
+
+    func testSplitsAtCommaBoundary() {
+        let transcript = "open cmux, type grok"
+        let boundaries = ClauseSplitter.candidateBoundaries(transcript)
+        XCTAssertEqual(ClauseSplitter.split(transcript, boundaries: boundaries), ["open cmux", "type grok"])
+    }
+
+    func testSplitsAtConjunctionBoundary() {
+        let transcript = "open chrome and then search for banana"
+        let boundaries = ClauseSplitter.candidateBoundaries(transcript)
+        XCTAssertEqual(ClauseSplitter.split(transcript, boundaries: boundaries), ["open chrome", "search for banana"])
+    }
+}

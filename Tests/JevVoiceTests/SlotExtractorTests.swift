@@ -21,8 +21,35 @@ final class SlotExtractorTests: XCTestCase {
         )
     }
 
+    func testSearchQueryStripsGooglePhrase() {
+        XCTAssertEqual(
+            SlotExtractor.searchQuery(from: "search for banana in google"),
+            "banana"
+        )
+    }
+
+    func testSearchQueryStripsChromePhraseAndFindsBrowser() {
+        let clause = "search for banana in chrome"
+        XCTAssertEqual(SlotExtractor.searchQuery(from: clause), "banana")
+        XCTAssertEqual(SlotExtractor.searchBrowser(from: clause), "Google Chrome")
+    }
+
+    func testSearchQueryWithoutEngine() {
+        XCTAssertEqual(
+            SlotExtractor.searchQuery(from: "search for apple pie"),
+            "apple pie"
+        )
+    }
+
     func testDictationText() {
         XCTAssertEqual(SlotExtractor.dictationText(from: "type hello world"), "hello world")
+    }
+
+    func testRequestedDictationText() {
+        XCTAssertEqual(
+            SlotExtractor.dictationText(from: "type please analyze this issue"),
+            "please analyze this issue"
+        )
     }
 
     func testPercentDigits() {

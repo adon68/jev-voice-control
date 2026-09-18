@@ -28,8 +28,70 @@ public final class CommandInterpreter {
         }
     }
 
+    private struct BoundaryCandidate: Encodable {
+        let index: Int
+        let before: String
+        let after: String
+    }
+
+    private struct BoundaryState: Encodable {
+        let transcript: String
+        let candidates: [BoundaryCandidate]
+    }
+
     public func interpret(transcript: String, frontmostApp: String?) async throws -> [Decision] {
-        let clauses = ClauseSplitter.split(transcript)
+        let boundaries = ClauseSplitter.candidateBoundaries(transcript)
+        let judgmentBoundaries = boundaries.filter(\.needsJudgment)
+        let clauses: [String]
+        if judgmentBoundaries.isEmpty {
+            clauses = ClauseSplitter.split(transcript, boundaries: boundaries)
+        } else {
+            let ns = transcript as NSString
+            let candidates = judgmentBoundaries.enumerated().map { index, boundary in
+                BoundaryCandidate(
+                    index: index,
+                    before: ns.substring(with: NSRange(location: 0, length: boundary.location))
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                    after: ns.substring(from: boundary.location)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }
+            let questions = Dictionary(uniqueKeysWithValues: candidates.map { candidate in
+                (
+                    "boundary_\(candidate.index)",
+                    Question.noul(
+                        instructions: "In the spoken transcript `transcript`, does the text `candidates[\(candidate.index)].after` begin a new, separate command that the user wants performed after `candidates[\(candidate.index)].before`, rather than being the content, object, or continuation of the previous command (for example words to be typed, a search phrase, or a website name)?"
+                    )
+                )
+            })
+            do {
+                let boundaryResponse = try await client.systemOne(
+                    state: BoundaryState(transcript: transcript, candidates: candidates),
+                    questions: questions
+                )
+                let response = boundaryResponse.response
+                let accepted = boundaries.filter { boundary in
+                    guard boundary.needsJudgment,
+                          let index = judgmentBoundaries.firstIndex(of: boundary),
+                          case .noul(let probability) = response.answers["boundary_\(index)"]
+                    else {
+                        return !boundary.needsJudgment
+                    }
+                    return probability > 0.6
+                }
+                clauses = ClauseSplitter.split(transcript, boundaries: accepted)
+            } catch {
+                clauses = ClauseSplitter.split(transcript)
+            }
+        }
+        return Self.propagateContext(try await interpretClauses(
+            clauses, transcript: transcript, frontmostApp: frontmostApp
+        ))
+    }
+
+    private func interpretClauses(
+        _ clauses: [String], transcript: String, frontmostApp: String?
+    ) async throws -> [Decision] {
         return try await withThrowingTaskGroup(of: (Int, Decision).self) { group in
             for (index, clause) in clauses.enumerated() {
                 group.addTask {
@@ -128,7 +190,7 @@ public final class CommandInterpreter {
         }
         let localMatch = refersToFrontmost
             ? nil : AppMatcher.match(clause: clause, installedApps: installedApps)
-        if url == nil, action != .openURL, action != .webSearch,
+        if url == nil, query == nil, action != .openURL, action != .webSearch,
            let verbAction = AppMatcher.verbAction(clause: clause), let local = localMatch {
             action = verbAction
             actionConfidence = max(actionConfidence, 0.95)
@@ -148,6 +210,9 @@ public final class CommandInterpreter {
                 targetApp = local.app
                 targetConfidence = local.confidence
             }
+        }
+        if action == .webSearch, targetApp == nil {
+            targetApp = SlotExtractor.searchBrowser(from: clause)
         }
         if (action == .openURL || action == .webSearch),
            let app = targetApp,
@@ -178,5 +243,22 @@ public final class CommandInterpreter {
             latencyMs: latencyMs,
             model: response.model
         )
+    }
+
+    static func propagateContext(_ decisions: [Decision]) -> [Decision] {
+        var result = decisions
+        var lastBrowser: String?
+        for index in result.indices {
+            let decision = result[index]
+            if (decision.action == .openApp || decision.action == .switchApp),
+               let targetApp = decision.targetApp,
+               browserNames.contains(targetApp.lowercased()) {
+                lastBrowser = targetApp
+            } else if (decision.action == .openURL || decision.action == .webSearch),
+                      result[index].targetApp == nil {
+                result[index].targetApp = lastBrowser
+            }
+        }
+        return result
     }
 }

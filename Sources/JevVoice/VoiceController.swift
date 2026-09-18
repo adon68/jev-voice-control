@@ -150,9 +150,16 @@ final class VoiceController: ObservableObject {
             return
         }
         status = .executing
+        var previousAction: Action?
         for decision in actionable {
             do {
+                if decision.action == .dictate,
+                   let previousAction,
+                   [.openApp, .switchApp, .openURL, .webSearch].contains(previousAction) {
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                }
                 _ = try await Executor.execute(decision)
+                previousAction = decision.action
             } catch {
                 status = .error(error.localizedDescription)
                 return
