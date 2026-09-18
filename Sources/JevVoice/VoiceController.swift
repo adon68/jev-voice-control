@@ -136,6 +136,12 @@ final class VoiceController: ObservableObject {
         await executeAll()
     }
 
+    func dismiss() {
+        guard status == .awaitingConfirm else { return }
+        decisions = []
+        status = .idle
+    }
+
     private func executeAll() async {
         let actionable = decisions.filter { $0.action != .none }
         guard !actionable.isEmpty else {

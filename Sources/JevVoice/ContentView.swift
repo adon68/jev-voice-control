@@ -119,7 +119,8 @@ struct ContentView: View {
                             && (!controller.config.autoExecute
                                 || decision.confidence < controller.config.confidenceThreshold)
                             && decision.action != .none,
-                        onConfirm: { Task { await controller.confirmAndExecute() } }
+                        onConfirm: { Task { await controller.confirmAndExecute() } },
+                        onDismiss: { controller.dismiss() }
                     )
                 }
             }
@@ -152,6 +153,7 @@ struct DecisionCard: View {
     let decision: Decision
     let needsConfirm: Bool
     let onConfirm: () -> Void
+    let onDismiss: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -180,9 +182,13 @@ struct DecisionCard: View {
             }
             slotChips
             if needsConfirm {
-                Button("Run", action: onConfirm)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                HStack {
+                    Button("Run", action: onConfirm)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    Button("Dismiss", action: onDismiss)
+                        .controlSize(.small)
+                }
             }
         }
         .padding(10)

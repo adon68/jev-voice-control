@@ -10,7 +10,25 @@ public enum AppMatcher {
     private static let stopWords: Set<String> = [
         "open", "close", "quit", "launch", "start", "kill", "exit", "switch", "to", "the",
         "app", "application", "please", "and", "then", "up", "my", "a", "an", "it",
+        "minimize", "minimise", "hide", "focus", "show", "go", "bring", "front", "activate",
     ]
+
+    private static let verbs: [(pattern: String, action: Action)] = [
+        (#"^(minimi[sz]e|shrink)\b"#, .minimizeApp),
+        (#"^hide\b"#, .hideApp),
+        (#"^(switch to|go to|focus( on)?|activate|bring up|show me|show)\b"#, .switchApp),
+        (#"^(close|quit|exit|kill|terminate|shut( down)?)\b"#, .closeApp),
+        (#"^(open|launch|start|run)\b"#, .openApp),
+    ]
+
+    /// Recognizes an app command from its leading verb, e.g. "minimize chrome" -> .minimizeApp.
+    public static func verbAction(clause: String) -> Action? {
+        let lowered = clause.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        for verb in verbs where lowered.range(of: verb.pattern, options: .regularExpression) != nil {
+            return verb.action
+        }
+        return nil
+    }
 
     /// Finds the installed app most plausibly named in `clause`, e.g. "close chrome" -> "Google Chrome".
     public static func match(clause: String, installedApps: [String]) -> Match? {

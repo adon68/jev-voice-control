@@ -24,6 +24,15 @@ enum Executor {
         case .closeApp:
             guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
             return closeApp(named: name)
+        case .switchApp:
+            guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
+            return try await switchApp(named: name)
+        case .minimizeApp:
+            guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
+            return try minimizeApp(named: name)
+        case .hideApp:
+            guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
+            return hideApp(named: name)
         case .openURL:
             guard let urlString = decision.url, let url = URL(string: urlString) else {
                 throw ExecutorError.missingSlot("url")
@@ -54,17 +63,49 @@ enum Executor {
         return "Opened \(name)"
     }
 
+    private static func runningApp(named name: String) -> NSRunningApplication? {
+        let apps = NSWorkspace.shared.runningApplications
+        return apps.first { $0.localizedName?.caseInsensitiveCompare(name) == .orderedSame }
+            ?? apps.first { $0.localizedName?.lowercased().contains(name.lowercased()) ?? false }
+    }
+
     private static func closeApp(named name: String) -> String {
-        let matches = NSWorkspace.shared.runningApplications.filter {
-            $0.localizedName?.caseInsensitiveCompare(name) == .orderedSame
+        guard let app = runningApp(named: name) else { return "\(name) is not running" }
+        app.terminate()
+        return "Quit \(app.localizedName ?? name)"
+    }
+
+    @MainActor
+    private static func switchApp(named name: String) async throws -> String {
+        if let app = runningApp(named: name) {
+            app.unhide()
+            app.activate(options: [.activateAllWindows])
+            return "Switched to \(app.localizedName ?? name)"
         }
-        if let app = matches.first ?? NSWorkspace.shared.runningApplications.first(where: {
-            $0.localizedName?.lowercased().contains(name.lowercased()) ?? false
-        }) {
-            app.terminate()
-            return "Quit \(app.localizedName ?? name)"
+        return try await openApp(named: name)
+    }
+
+    private static func minimizeApp(named name: String) throws -> String {
+        guard let app = runningApp(named: name) else { return "\(name) is not running" }
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        var windowsValue: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsValue)
+        guard status == .success, let windows = windowsValue as? [AXUIElement] else {
+            throw NSError(
+                domain: "JevVoice.Executor", code: Int(status.rawValue),
+                userInfo: [NSLocalizedDescriptionKey: "Cannot access windows of \(app.localizedName ?? name) (Accessibility permission?)"]
+            )
         }
-        return "\(name) is not running"
+        for window in windows {
+            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
+        }
+        return "Minimized \(app.localizedName ?? name)"
+    }
+
+    private static func hideApp(named name: String) -> String {
+        guard let app = runningApp(named: name) else { return "\(name) is not running" }
+        app.hide()
+        return "Hid \(app.localizedName ?? name)"
     }
 
     @MainActor

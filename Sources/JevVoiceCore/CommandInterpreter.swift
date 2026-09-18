@@ -126,14 +126,24 @@ public final class CommandInterpreter {
             action = .webSearch
             query = q
         }
-        if targetApp == nil && (action == .closeApp || action == .openApp) {
+        let localMatch = refersToFrontmost
+            ? nil : AppMatcher.match(clause: clause, installedApps: installedApps)
+        if let verbAction = AppMatcher.verbAction(clause: clause), let local = localMatch {
+            action = verbAction
+            actionConfidence = max(actionConfidence, 0.95)
+            targetApp = local.app
+            targetConfidence = local.confidence
+            systemAction = nil
+            systemConfidence = 1.0
+        }
+        if targetApp == nil && Action.appTargeted.contains(action) {
             if refersToFrontmost {
-                if action == .closeApp, let front = frontmostApp {
+                if action != .openApp, let front = frontmostApp {
                     targetApp = front
                 } else {
                     action = .none
                 }
-            } else if let local = AppMatcher.match(clause: clause, installedApps: installedApps) {
+            } else if let local = localMatch {
                 targetApp = local.app
                 targetConfidence = local.confidence
             }
