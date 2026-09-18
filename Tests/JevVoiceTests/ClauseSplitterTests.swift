@@ -30,3 +30,13 @@ final class ClauseSplitterTests: XCTestCase {
         )
     }
 }
+
+final class ClauseSplitterNewVerbTests: XCTestCase {
+    func testSplitsBeforeMinimize() {
+        XCTAssertEqual(ClauseSplitter.split("open safari and minimize chrome"), ["open safari", "minimize chrome"])
+    }
+
+    func testSplitsBeforeMultiwordVerbs() {
+        XCTAssertEqual(ClauseSplitter.split("bring up notes then shut down music"), ["bring up notes", "shut down music"])
+    }
+}

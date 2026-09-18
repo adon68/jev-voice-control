@@ -5,11 +5,13 @@ import JevVoiceCore
 enum ExecutorError: Error, LocalizedError {
     case appNotFound(String)
     case missingSlot(String)
+    case controlFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .appNotFound(let name): return "Could not find app: \(name)"
         case .missingSlot(let what): return "Missing \(what)"
+        case .controlFailed(let what): return what
         }
     }
 }
@@ -32,7 +34,7 @@ enum Executor {
             return try minimizeApp(named: name)
         case .hideApp:
             guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
-            return hideApp(named: name)
+            return try hideApp(named: name)
         case .openURL:
             guard let urlString = decision.url, let url = URL(string: urlString) else {
                 throw ExecutorError.missingSlot("url")
@@ -78,9 +80,12 @@ enum Executor {
     @MainActor
     private static func switchApp(named name: String) async throws -> String {
         if let app = runningApp(named: name) {
+            let shown = app.localizedName ?? name
             app.unhide()
-            app.activate(options: [.activateAllWindows])
-            return "Switched to \(app.localizedName ?? name)"
+            guard app.activate(options: [.activateAllWindows]) else {
+                throw ExecutorError.controlFailed("Could not switch to \(shown)")
+            }
+            return "Switched to \(shown)"
         }
         return try await openApp(named: name)
     }
@@ -96,15 +101,20 @@ enum Executor {
                 userInfo: [NSLocalizedDescriptionKey: "Cannot access windows of \(app.localizedName ?? name) (Accessibility permission?)"]
             )
         }
-        for window in windows {
-            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
+        let failed = windows.filter {
+            AXUIElementSetAttributeValue($0, kAXMinimizedAttribute as CFString, kCFBooleanTrue) != .success
+        }
+        guard failed.isEmpty else {
+            throw ExecutorError.controlFailed(
+                "Could not minimize \(failed.count) of \(windows.count) \(app.localizedName ?? name) windows"
+            )
         }
         return "Minimized \(app.localizedName ?? name)"
     }
 
-    private static func hideApp(named name: String) -> String {
+    private static func hideApp(named name: String) throws -> String {
         guard let app = runningApp(named: name) else { return "\(name) is not running" }
-        app.hide()
+        guard app.hide() else { throw ExecutorError.controlFailed("Could not hide \(app.localizedName ?? name)") }
         return "Hid \(app.localizedName ?? name)"
     }
 

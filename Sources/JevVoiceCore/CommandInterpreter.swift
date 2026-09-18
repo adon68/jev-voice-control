@@ -128,7 +128,8 @@ public final class CommandInterpreter {
         }
         let localMatch = refersToFrontmost
             ? nil : AppMatcher.match(clause: clause, installedApps: installedApps)
-        if let verbAction = AppMatcher.verbAction(clause: clause), let local = localMatch {
+        if url == nil, action != .openURL, action != .webSearch,
+           let verbAction = AppMatcher.verbAction(clause: clause), let local = localMatch {
             action = verbAction
             actionConfidence = max(actionConfidence, 0.95)
             targetApp = local.app
