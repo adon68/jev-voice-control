@@ -63,8 +63,12 @@ final class VoiceController: ObservableObject {
         }
     }
 
+    private var startTask: Task<Void, Never>?
+
     func startListening() {
-        Task {
+        guard startTask == nil else { return }
+        startTask = Task {
+            defer { startTask = nil }
             let granted = await SpeechRecognizer.requestAuthorization()
             refreshPermissions()
             guard granted else {
@@ -80,6 +84,7 @@ final class VoiceController: ObservableObject {
                 onListeningChanged?(true)
             } catch {
                 status = .error(error.localizedDescription)
+                onDone?()
             }
         }
     }
