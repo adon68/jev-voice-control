@@ -1,16 +1,21 @@
 import Foundation
 
 public enum Action: String, CaseIterable, Codable {
-    case openApp, closeApp, openURL, webSearch, dictate, system, none
+    case openApp, closeApp, switchApp, minimizeApp, hideApp, openURL, webSearch, dictate, system, none
+
+    public static let appTargeted: Set<Action> = [.openApp, .closeApp, .switchApp, .minimizeApp, .hideApp]
 
     public var description: String {
         switch self {
         case .openApp: return "Open or launch an application"
         case .closeApp: return "Close, quit, or exit an application"
+        case .switchApp: return "Switch to, focus, or bring an application to the front"
+        case .minimizeApp: return "Minimize an application's windows to the Dock"
+        case .hideApp: return "Hide an application"
         case .openURL: return "Open a specific website or URL in a browser"
         case .webSearch: return "Search the web for a query"
         case .dictate: return "Type or write text at the cursor"
-        case .system: return "A system-level action (volume, lock, sleep, screenshot, brightness, show desktop)"
+        case .system: return "A system-level action not aimed at one app (volume, lock, sleep, screenshot, brightness, show desktop)"
         case .none: return "No actionable command"
         }
     }

@@ -5,6 +5,8 @@ public enum ClauseSplitter {
         "open", "launch", "close", "quit", "go", "type", "write", "search",
         "google", "set", "turn", "mute", "unmute", "lock", "sleep", "take",
         "switch", "show", "hide", "play", "pause", "next", "previous",
+        "minimize", "minimise", "shrink", "focus", "activate", "bring", "run",
+        "start", "exit", "kill", "terminate", "shut",
     ]
 
     public static func split(_ transcript: String) -> [String] {

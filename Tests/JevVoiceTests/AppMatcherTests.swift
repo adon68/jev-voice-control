@@ -32,3 +32,18 @@ final class AppMatcherTests: XCTestCase {
         XCTAssertEqual(match?.confidence, 0.5)
     }
 }
+
+final class VerbActionTests: XCTestCase {
+    func testVerbs() {
+        XCTAssertEqual(AppMatcher.verbAction(clause: "Minimize chrome"), .minimizeApp)
+        XCTAssertEqual(AppMatcher.verbAction(clause: "switch to safari"), .switchApp)
+        XCTAssertEqual(AppMatcher.verbAction(clause: "hide notes"), .hideApp)
+        XCTAssertEqual(AppMatcher.verbAction(clause: "quit music"), .closeApp)
+        XCTAssertEqual(AppMatcher.verbAction(clause: "open safari"), .openApp)
+        XCTAssertNil(AppMatcher.verbAction(clause: "set volume to 30"))
+    }
+
+    func testVerbWordIsNotAnAppToken() {
+        XCTAssertEqual(AppMatcher.match(clause: "minimize chrome", installedApps: ["Google Chrome"])?.app, "Google Chrome")
+    }
+}

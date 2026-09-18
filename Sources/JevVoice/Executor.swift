@@ -5,11 +5,13 @@ import JevVoiceCore
 enum ExecutorError: Error, LocalizedError {
     case appNotFound(String)
     case missingSlot(String)
+    case controlFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .appNotFound(let name): return "Could not find app: \(name)"
         case .missingSlot(let what): return "Missing \(what)"
+        case .controlFailed(let what): return what
         }
     }
 }
@@ -24,6 +26,15 @@ enum Executor {
         case .closeApp:
             guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
             return closeApp(named: name)
+        case .switchApp:
+            guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
+            return try await switchApp(named: name)
+        case .minimizeApp:
+            guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
+            return try minimizeApp(named: name)
+        case .hideApp:
+            guard let name = decision.targetApp else { throw ExecutorError.missingSlot("target app") }
+            return try hideApp(named: name)
         case .openURL:
             guard let urlString = decision.url, let url = URL(string: urlString) else {
                 throw ExecutorError.missingSlot("url")
@@ -54,17 +65,57 @@ enum Executor {
         return "Opened \(name)"
     }
 
+    private static func runningApp(named name: String) -> NSRunningApplication? {
+        let apps = NSWorkspace.shared.runningApplications
+        return apps.first { $0.localizedName?.caseInsensitiveCompare(name) == .orderedSame }
+            ?? apps.first { $0.localizedName?.lowercased().contains(name.lowercased()) ?? false }
+    }
+
     private static func closeApp(named name: String) -> String {
-        let matches = NSWorkspace.shared.runningApplications.filter {
-            $0.localizedName?.caseInsensitiveCompare(name) == .orderedSame
+        guard let app = runningApp(named: name) else { return "\(name) is not running" }
+        app.terminate()
+        return "Quit \(app.localizedName ?? name)"
+    }
+
+    @MainActor
+    private static func switchApp(named name: String) async throws -> String {
+        if let app = runningApp(named: name) {
+            let shown = app.localizedName ?? name
+            app.unhide()
+            guard app.activate(options: [.activateAllWindows]) else {
+                throw ExecutorError.controlFailed("Could not switch to \(shown)")
+            }
+            return "Switched to \(shown)"
         }
-        if let app = matches.first ?? NSWorkspace.shared.runningApplications.first(where: {
-            $0.localizedName?.lowercased().contains(name.lowercased()) ?? false
-        }) {
-            app.terminate()
-            return "Quit \(app.localizedName ?? name)"
+        return try await openApp(named: name)
+    }
+
+    private static func minimizeApp(named name: String) throws -> String {
+        guard let app = runningApp(named: name) else { return "\(name) is not running" }
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        var windowsValue: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsValue)
+        guard status == .success, let windows = windowsValue as? [AXUIElement] else {
+            throw NSError(
+                domain: "JevVoice.Executor", code: Int(status.rawValue),
+                userInfo: [NSLocalizedDescriptionKey: "Cannot access windows of \(app.localizedName ?? name) (Accessibility permission?)"]
+            )
         }
-        return "\(name) is not running"
+        let failed = windows.filter {
+            AXUIElementSetAttributeValue($0, kAXMinimizedAttribute as CFString, kCFBooleanTrue) != .success
+        }
+        guard failed.isEmpty else {
+            throw ExecutorError.controlFailed(
+                "Could not minimize \(failed.count) of \(windows.count) \(app.localizedName ?? name) windows"
+            )
+        }
+        return "Minimized \(app.localizedName ?? name)"
+    }
+
+    private static func hideApp(named name: String) throws -> String {
+        guard let app = runningApp(named: name) else { return "\(name) is not running" }
+        guard app.hide() else { throw ExecutorError.controlFailed("Could not hide \(app.localizedName ?? name)") }
+        return "Hid \(app.localizedName ?? name)"
     }
 
     @MainActor
