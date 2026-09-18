@@ -23,7 +23,7 @@ final class SpeechRecognizer: ObservableObject {
         }
         guard speechStatus == .authorized else { return false }
         if #available(macOS 14, *) {
-            return await AVApplication.requestAccess(for: .audio)
+            return await AVAudioApplication.requestRecordPermission()
         }
         return await withCheckedContinuation { continuation in
             AVCaptureDevice.requestAccess(for: .audio) { granted in
