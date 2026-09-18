@@ -52,12 +52,27 @@ heuristics.
 Low-confidence decisions (< threshold, default 70%) require clicking **Run** in
 the popover before anything executes.
 
-## Build & install
+## Install with Homebrew
+
+This repository doubles as a Homebrew tap (see `Casks/jev-voice.rb`):
+
+```sh
+brew tap chris-wozniczek/jev-voice https://github.com/chris-wozniczek/jev-voice-control
+brew install --cask jev-voice
+```
+
+Releases are produced by `.github/workflows/release.yml`: bump
+`CFBundleShortVersionString` in `Info.plist`, push a matching `vX.Y.Z` tag, and
+the workflow builds `Jev-Voice-X.Y.Z.zip`, publishes a GitHub release, and
+commits the new version/sha256 into the cask.
+
+## Build from source
 
 ```sh
 make app    # builds build/Jev Voice.app (ad-hoc signed)
 make run    # launches it
 make test   # unit tests (pure logic: clause splitting, slot extraction, codecs)
+make dist   # zips the app into build/Jev-Voice-<version>.zip and prints its sha256
 ```
 
 Then set your API key in the popover's Settings (gear icon), or:

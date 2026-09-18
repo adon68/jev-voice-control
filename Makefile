@@ -1,7 +1,9 @@
 APP = build/Jev Voice.app
 BINARY = .build/release/JevVoice
+VERSION := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.plist)
+ZIP = build/Jev-Voice-$(VERSION).zip
 
-.PHONY: build app run test clean
+.PHONY: build app run test dist clean
 
 build:
 	swift build -c release
@@ -17,6 +19,12 @@ run: app
 
 test:
 	swift test
+
+# Zip suitable for a GitHub release asset / Homebrew cask (ditto preserves signatures).
+dist: app
+	rm -f "$(ZIP)"
+	ditto -c -k --keepParent "$(APP)" "$(ZIP)"
+	shasum -a 256 "$(ZIP)"
 
 clean:
 	rm -rf build .build
