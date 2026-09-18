@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import JevVoiceCore
 import SwiftUI
 
@@ -28,11 +29,25 @@ final class VoiceController: ObservableObject {
     var onDone: (() -> Void)?
 
     private var apps: [String] = []
+    private var cancellables: Set<AnyCancellable> = []
 
     init() {
         recognizer.onFinalTranscript = { [weak self] text in
             Task { @MainActor in await self?.interpretAndExecute(text) }
         }
+        recognizer.onEndedWithoutSpeech = { [weak self] error in
+            guard let self, self.status == .listening else { return }
+            if let error {
+                self.status = .error("Speech recognition failed: \(error.localizedDescription)")
+            } else {
+                self.status = .idle
+            }
+            self.onListeningChanged?(false)
+        }
+        recognizer.$transcript
+            .filter { !$0.isEmpty }
+            .sink { [weak self] in self?.transcript = $0 }
+            .store(in: &cancellables)
     }
 
     func refreshPermissions() {
@@ -52,10 +67,6 @@ final class VoiceController: ObservableObject {
         switch status {
         case .listening:
             recognizer.stop()
-            if recognizer.transcript.trimmingCharacters(in: .whitespaces).isEmpty {
-                status = .idle
-                onListeningChanged?(false)
-            }
         case .idle, .done, .error:
             startListening()
         default:
@@ -108,6 +119,7 @@ final class VoiceController: ObservableObject {
             history = (result + history).prefix(10).map { $0 }
         } catch {
             status = .error(error.localizedDescription)
+            onDone?()
             return
         }
 
