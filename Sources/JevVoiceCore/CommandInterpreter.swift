@@ -126,6 +126,11 @@ public final class CommandInterpreter {
             action = .webSearch
             query = q
         }
+        if targetApp == nil, action == .closeApp || action == .openApp,
+           let local = AppMatcher.match(clause: clause, installedApps: installedApps) {
+            targetApp = local
+            targetConfidence = 1.0
+        }
         if targetApp == nil && refersToFrontmost && (action == .closeApp || action == .openApp) {
             if action == .closeApp, let front = frontmostApp {
                 targetApp = front
