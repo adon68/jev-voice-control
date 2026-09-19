@@ -62,7 +62,25 @@ enum Executor {
             throw ExecutorError.appNotFound(name)
         }
         try await NSWorkspace.shared.openApplication(at: url, configuration: .init())
+        try await waitForApplication(url: url, timeout: 3.0, requireFrontmost: false)
         return "Opened \(name)"
+    }
+
+    @MainActor
+    private static func waitForApplication(
+        url: URL, timeout: TimeInterval, requireFrontmost: Bool
+    ) async throws {
+        let attempts = Int(timeout / 0.1)
+        for attempt in 0...attempts {
+            let isFrontmost = NSWorkspace.shared.frontmostApplication?.bundleURL == url
+            let isRunning = NSWorkspace.shared.runningApplications.contains {
+                $0.bundleURL == url
+            }
+            if isFrontmost || (!requireFrontmost && isRunning) { return }
+            if attempt < attempts {
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
     }
 
     private static func runningApp(named name: String) -> NSRunningApplication? {
@@ -84,6 +102,9 @@ enum Executor {
             app.unhide()
             guard app.activate(options: [.activateAllWindows]) else {
                 throw ExecutorError.controlFailed("Could not switch to \(shown)")
+            }
+            if let url = app.bundleURL {
+                try await waitForApplication(url: url, timeout: 1.5, requireFrontmost: true)
             }
             return "Switched to \(shown)"
         }

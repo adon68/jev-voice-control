@@ -27,8 +27,34 @@ public enum SlotExtractor {
             }
         }
         guard let range = best else { return nil }
-        let query = clause[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        var query = String(clause[range.upperBound...])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let match = trailingSearchEngineMatch(in: query) {
+            query.removeSubrange(match.fullRange)
+            query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         return query.isEmpty ? nil : query
+    }
+
+    public static func searchBrowser(from clause: String) -> String? {
+        guard let match = trailingSearchEngineMatch(in: clause) else { return nil }
+        let phrase = String(clause[match.appRange]).lowercased()
+        switch phrase {
+        case "chrome", "google chrome":
+            return "Google Chrome"
+        case "safari":
+            return "Safari"
+        case "firefox":
+            return "Firefox"
+        case "arc":
+            return "Arc"
+        case "brave":
+            return "Brave Browser"
+        case "edge":
+            return "Microsoft Edge"
+        default:
+            return nil
+        }
     }
 
     public static func dictationText(from clause: String) -> String? {
@@ -52,5 +78,25 @@ public enum SlotExtractor {
         if lowered.range(of: #"\bhalf\b"#, options: .regularExpression) != nil { return 50 }
         if lowered.range(of: #"\boff\b"#, options: .regularExpression) != nil { return 0 }
         return nil
+    }
+
+    private struct SearchEngineMatch {
+        let fullRange: Range<String.Index>
+        let appRange: Range<String.Index>
+    }
+
+    private static func trailingSearchEngineMatch(in text: String) -> SearchEngineMatch? {
+        let pattern = #"\s+(in|on|with|using)\s+(google chrome|google|chrome|safari|firefox|arc|brave|edge|bing|duckduckgo)\s*$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            return nil
+        }
+        let ns = text as NSString
+        let fullRange = NSRange(location: 0, length: ns.length)
+        guard let match = regex.firstMatch(in: text, range: fullRange),
+              let full = Range(match.range, in: text),
+              let app = Range(match.range(at: 2), in: text) else {
+            return nil
+        }
+        return SearchEngineMatch(fullRange: full, appRange: app)
     }
 }
